@@ -127,3 +127,22 @@ from (values
   ('Sunrise Second Hand',   '11', 'Legarda Road, Baguio City')
 ) as v(name, stall_no, location)
 where not exists (select 1 from public.stalls s where s.stall_no = v.stall_no);
+
+-- 5. Staff roles: admin, operator, stall_owner ----------------------------------
+do $$
+declare c record;
+begin
+  for c in select conname from pg_constraint
+    where conrelid = 'public.stall_memberships'::regclass and contype = 'c'
+      and pg_get_constraintdef(oid) ilike '%member_role%'
+  loop
+    execute format('alter table public.stall_memberships drop constraint %I', c.conname);
+  end loop;
+  alter table public.stall_memberships add constraint stall_memberships_member_role_check
+    check (member_role in ('admin', 'operator', 'stall_owner'));
+end $$;
+
+-- To give someone a role, run (replace the email, role and stall number):
+-- insert into public.stall_memberships (user_id, stall_id, member_role)
+-- select u.id, s.id, 'operator' from auth.users u, public.stalls s
+-- where u.email = 'person@example.com' and s.stall_no = '02';
