@@ -30,12 +30,12 @@ body.public-store #auth{display:none!important}body.public-store #app{display:bl
   <div class="auth-card" id="loginCard">
     <h2>Welcome Back!</h2><p class="sub">Log in to your account to continue.</p>
     <form id="loginForm">
-      <div class="field"><label>Email or username</label><input id="loginEmail" required placeholder="you@example.com" value="admin@thriftcloud.local"></div>
-      <div class="field"><label>Password</label><input id="loginPassword" type="password" required placeholder="Enter password" value="demo1234"></div>
+      <div class="field"><label>Email or username</label><input id="loginEmail" type="email" required placeholder="you@example.com"></div>
+      <div class="field"><label>Password</label><input id="loginPassword" type="password" required placeholder="Enter password"></div>
       <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#707895"><input type="checkbox" checked style="accent-color:#5144e8"> Remember me</div>
       <button class="btn block" type="submit">Log In</button>
     </form>
-    <div class="auth-foot">Demo access: <b>admin@thriftcloud.local</b> / <b>demo1234</b><br><br><button class="text-btn" id="browseStoreBtn" type="button">Browse as a buyer</button><br><br>New here? <button class="text-btn" id="showSignup">Create an account</button></div>
+    <div class="auth-foot"><button class="hidden" id="browseStoreBtn" type="button" aria-hidden="true"></button>New here? <button class="text-btn" id="showSignup">Create an account</button></div>
   </div>
   <div class="auth-card hidden" id="signupCard">
     <h2>Create Account</h2><p class="sub">Set up your Thrift to Cloud account.</p>
@@ -188,7 +188,7 @@ function enterApp(){document.body.classList.remove('public-store');save();record
 function openBuyerStore(){document.body.classList.add('public-store');$('auth').classList.add('hidden');$('app').classList.remove('hidden');go('online')}
 function leaveBuyerStore(){document.body.classList.remove('public-store');$('app').classList.add('hidden');$('auth').classList.remove('hidden')}
 $('browseStoreBtn').onclick=openBuyerStore;$('leavePublicStore').onclick=leaveBuyerStore;
-$('loginForm').addEventListener('submit',e=>{e.preventDefault();let email=$('loginEmail').value.trim();let pass=$('loginPassword').value;if(email==='admin@thriftcloud.local'&&pass==='demo1234'){state.user={name:'Admin User',email,role:'Administrator'};enterApp()}else{let saved=JSON.parse(localStorage.getItem('ttc_account')||'null');if(saved&&saved.email===email&&saved.password===pass){state.user={name:saved.name,email:saved.email,role:'Stall Owner'};enterApp()}else toast('Invalid demo credentials. Use the demo account shown below.')}})
+$('loginForm').addEventListener('submit',e=>{e.preventDefault();let email=$('loginEmail').value.trim();let pass=$('loginPassword').value;if(email==='admin@thriftcloud.local'&&false){state.user={name:'Admin User',email,role:'Administrator'};enterApp()}else{let saved=JSON.parse(localStorage.getItem('ttc_account')||'null');if(saved&&saved.email===email&&saved.password===pass){state.user={name:saved.name,email:saved.email,role:'Stall Owner'};enterApp()}else toast('Invalid demo credentials. Use the demo account shown below.')}})
 $('showSignup').onclick=()=>{$('loginCard').classList.add('hidden');$('signupCard').classList.remove('hidden')};$('showLogin').onclick=()=>{$('signupCard').classList.add('hidden');$('loginCard').classList.remove('hidden')};
 $('signupForm').addEventListener('submit',e=>{e.preventDefault();let account={name:$('signupName').value.trim(),email:$('signupEmail').value.trim(),password:$('signupPassword').value};localStorage.setItem('ttc_account',JSON.stringify(account));state.user={name:account.name,email:account.email,role:'Stall Owner'};enterApp();toast('Account created in this browser demo.')});
 $('logoutBtn').onclick=()=>{recordAudit('Signed out','Access','Account session ended.');$('app').classList.add('hidden');$('auth').classList.remove('hidden');$('loginPassword').value='';};
@@ -228,7 +228,7 @@ const m=members[0],st=m.stalls;if(!st)throw Error('Stall details are unavailable
 let {data:products,error:pe}=await db.from('products').select('*').eq('stall_id',cloudStallId).order('created_at',{ascending:false});if(pe)throw pe;state.products=(products||[]).map(toUiProduct);
 let {data:orders,error:oe}=await db.from('orders').select('*,order_items(*)').eq('stall_id',cloudStallId).order('created_at',{ascending:false});if(oe)throw oe;state.orders=(orders||[]).map(toUiOrder);state.sales=state.orders.filter(o=>o.status==='Completed').map(o=>({id:o.id,date:o.date,customer:o.customer,items:o.items,total:o.total,onlineOrderId:o.id}));localStorage.setItem('ttc_user',JSON.stringify(state.user));refreshUser();cloudReady=true;renderAllCloud();toast('Connected to Supabase. Stall data loaded.');}catch(e){toast('Cloud connection: '+(e.message||e));console.error(e)}finally{cloudLoading=false}}
 function renderAllCloud(){renderInventory();renderSales();renderOnlineStore();renderDashboard();renderReports();renderSettings()}
-async function cloudLogin(e){e.preventDefault();const {error}=await db.auth.signInWithPassword({email:$('loginEmail').value.trim(),password:$('loginPassword').value});if(error){toast(error.message);return}await loadOwner();if(cloudReady)enterCloudApp()}
+async function cloudLogin(e){e.preventDefault();e.stopImmediatePropagation();const {error}=await db.auth.signInWithPassword({email:$('loginEmail').value.trim(),password:$('loginPassword').value});if(error){toast(error.message);return}await loadOwner();if(cloudReady)enterCloudApp()}
 function enterCloudApp(){document.body.classList.remove('public-store');$('auth').classList.add('hidden');$('app').classList.remove('hidden');refreshUser();go('dashboard')}
 $('loginForm').addEventListener('submit',cloudLogin,true);
 $('signupForm').addEventListener('submit',async e=>{e.preventDefault();e.stopImmediatePropagation();let name=$('signupName').value.trim();const {data,error}=await db.auth.signUp({email:$('signupEmail').value.trim(),password:$('signupPassword').value,options:{data:{full_name:name}}});if(error){toast(error.message);return}if(!data.session){toast('Account created. Verify your email, then log in to create your stall.');$('showLogin').click();return}await loadOwner();if(cloudReady)enterCloudApp()},true);
